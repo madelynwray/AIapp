@@ -1,0 +1,2388 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect, useRef } from "react"
+import Image from "next/image"
+import {
+  Cog,
+  User,
+  Calendar,
+  Search,
+  Plus,
+  MapPin,
+  Clock,
+  Users,
+  ChevronLeft,
+  ArrowLeft,
+  X,
+  Check,
+  Music,
+  Utensils,
+  BookOpen,
+  Camera,
+  Zap,
+  Briefcase,
+  Share2,
+  Copy,
+  UserPlus,
+  Dumbbell,
+  Palette,
+  Gamepad2,
+  Ticket,
+  GraduationCap,
+  Coffee,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+
+// Define event type
+type Event = {
+  id: string
+  title: string
+  date: string
+  time: string
+  location: string
+  organizer: string
+  interested: number
+  image?: string
+  color?: string
+  added?: boolean
+  latitude?: number
+  longitude?: number
+  goalId?: string
+  completed?: boolean
+  category?: string
+  tags?: string[]
+  friendsAttending?: string[] // IDs of friends attending this event
+}
+
+// Define goal type
+type Goal = {
+  id: string
+  title: string
+  progress: number
+  color: string
+  events: string[] // Event IDs associated with this goal
+}
+
+// Define category type with icon
+type Category = {
+  id: string
+  name: string
+  icon: React.ReactNode
+  color: string
+}
+
+// Define friend type
+type Friend = {
+  id: string
+  name: string
+  image?: string
+  status: "connected" | "pending" | "suggested"
+  events?: string[] // IDs of events they're attending
+}
+
+function AddEventScreen({
+  newEvent,
+  setNewEvent,
+  onAddEvent,
+  goals,
+  categories,
+}: {
+  newEvent: Partial<Event>
+  setNewEvent: (event: Partial<Event>) => void
+  onAddEvent: () => void
+  goals: Goal[]
+  categories: Category[]
+}) {
+  return (
+    <div className="h-full flex flex-col bg-white">
+      <div className="p-4 flex justify-between items-center border-b">
+        <h2 className="text-lg font-semibold">Create New Event</h2>
+      </div>
+
+      <div className="flex-1 p-4 overflow-auto">
+        <form className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Event Title*</label>
+            <input
+              type="text"
+              value={newEvent.title || ""}
+              onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+              className="w-full p-2 border rounded-lg"
+              placeholder="Enter event title"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Date*</label>
+            <input
+              type="date"
+              value={newEvent.date || ""}
+              onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+              className="w-full p-2 border rounded-lg"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Time*</label>
+            <input
+              type="text"
+              value={newEvent.time || ""}
+              onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+              className="w-full p-2 border rounded-lg"
+              placeholder="e.g. 7 PM"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Location*</label>
+            <input
+              type="text"
+              value={newEvent.location || ""}
+              onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+              className="w-full p-2 border rounded-lg"
+              placeholder="Enter location"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Organizer</label>
+            <input
+              type="text"
+              value={newEvent.organizer || ""}
+              onChange={(e) => setNewEvent({ ...newEvent, organizer: e.target.value })}
+              className="w-full p-2 border rounded-lg"
+              placeholder="Enter organizer name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Category</label>
+            <select
+              value={newEvent.category || ""}
+              onChange={(e) => setNewEvent({ ...newEvent, category: e.target.value })}
+              className="w-full p-2 border rounded-lg"
+            >
+              <option value="">Select a category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Tags (comma separated)</label>
+            <input
+              type="text"
+              value={newEvent.tags?.join(", ") || ""}
+              onChange={(e) =>
+                setNewEvent({
+                  ...newEvent,
+                  tags: e.target.value
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter((tag) => tag),
+                })
+              }
+              className="w-full p-2 border rounded-lg"
+              placeholder="e.g. sports, outdoor, beginner"
+            />
+          </div>
+
+          {goals.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Assign to Goal (Optional)</label>
+              <select
+                value={newEvent.goalId || ""}
+                onChange={(e) => setNewEvent({ ...newEvent, goalId: e.target.value })}
+                className="w-full p-2 border rounded-lg"
+              >
+                <option value="">None</option>
+                {goals.map((goal) => (
+                  <option key={goal.id} value={goal.id}>
+                    {goal.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={onAddEvent}
+              className={cn(
+                "w-full py-3 rounded-lg font-medium",
+                newEvent.title && newEvent.date && newEvent.time && newEvent.location
+                  ? "bg-[#5a62ff] text-white"
+                  : "bg-gray-300 text-gray-500",
+              )}
+              disabled={!newEvent.title || !newEvent.date || !newEvent.time || !newEvent.location}
+            >
+              Create Event
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function AddGoalScreen({
+  newGoal,
+  setNewGoal,
+  onAddGoal,
+}: {
+  newGoal: Partial<Goal>
+  setNewGoal: (goal: Partial<Goal>) => void
+  onAddGoal: () => void
+}) {
+  const colorOptions = [
+    { name: "Pink", value: "#ffbcea" },
+    { name: "Yellow", value: "#ffe9c4" },
+    { name: "Green", value: "#c6ffd8" },
+    { name: "Blue", value: "#aca7fa" },
+    { name: "Purple", value: "#5a62ff" },
+  ]
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      <div className="p-4 flex justify-between items-center border-b">
+        <h2 className="text-lg font-semibold">Create New Goal</h2>
+      </div>
+
+      <div className="flex-1 p-4 overflow-auto">
+        <form className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Goal Title*</label>
+            <input
+              type="text"
+              value={newGoal.title || ""}
+              onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })}
+              className="w-full p-2 border rounded-lg"
+              placeholder="Enter goal title"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Color</label>
+            <div className="flex flex-wrap gap-2">
+              {colorOptions.map((color) => (
+                <div
+                  key={color.value}
+                  onClick={() => setNewGoal({ ...newGoal, color: color.value })}
+                  className={cn(
+                    "w-8 h-8 rounded-full cursor-pointer",
+                    newGoal.color === color.value ? "ring-2 ring-black ring-offset-2" : "",
+                  )}
+                  style={{ backgroundColor: color.value }}
+                ></div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={onAddGoal}
+              className={cn(
+                "w-full py-3 rounded-lg font-medium",
+                newGoal.title ? "bg-[#5a62ff] text-white" : "bg-gray-300 text-gray-500",
+              )}
+              disabled={!newGoal.title}
+            >
+              Create Goal
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Add the CalendarScreen component definition before the EventsScreen component
+
+function CalendarScreen({
+  events,
+  selectedDate,
+  setSelectedDate,
+  onDateClick,
+  removeEvent,
+  currentMonth,
+  previousMonth,
+  nextMonth,
+  formatMonthYear,
+  calendarDays,
+  showEventModal,
+  setShowEventModal,
+  onEventClick,
+  addEventToSchedule,
+  friends,
+  getFriendsAttendingEvent,
+}: {
+  events: Event[]
+  selectedDate: string | null
+  setSelectedDate: (date: string | null) => void
+  onDateClick: (date: string) => void
+  removeEvent: (id: string) => void
+  currentMonth: Date
+  previousMonth: () => void
+  nextMonth: () => void
+  formatMonthYear: (date: Date) => string
+  calendarDays: Array<{ date: string; day: number; isCurrentMonth: boolean; hasEvents: boolean }>
+  showEventModal: boolean
+  setShowEventModal: (show: boolean) => void
+  onEventClick: (event: Event) => void
+  addEventToSchedule: (eventId: string) => void
+  friends: Friend[]
+  getFriendsAttendingEvent: (eventId: string) => Friend[]
+}) {
+  const getEventsForDate = (date: string) => {
+    return events.filter((event) => event.date === date)
+  }
+
+  const eventsForSelectedDate = selectedDate ? getEventsForDate(selectedDate) : []
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      {/* Month Selector */}
+      <div className="flex items-center justify-between p-3 border-b">
+        <button onClick={previousMonth} className="p-1">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div className="font-semibold">{formatMonthYear(currentMonth)}</div>
+        <button onClick={nextMonth} className="p-1">
+          <ArrowLeft className="w-4 h-4 transform rotate-180" />
+        </button>
+      </div>
+
+      {/* Calendar */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-2">
+          {/* Days of Week */}
+          <div className="grid grid-cols-7 text-center text-xs font-medium mb-2">
+            <div>Sun</div>
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.map((day, index) => (
+              <div
+                key={index}
+                onClick={() => onDateClick(day.date)}
+                className={cn(
+                  "aspect-square flex flex-col items-center justify-center relative cursor-pointer hover:bg-gray-100 rounded-lg",
+                  !day.isCurrentMonth && "text-gray-400",
+                  selectedDate === day.date && "bg-[#5a62ff] text-white hover:bg-[#5a62ff]",
+                )}
+              >
+                <span className="text-sm">{day.day}</span>
+                {day.hasEvents && (
+                  <div
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full mt-0.5",
+                      selectedDate === day.date ? "bg-white" : "bg-[#ff5acb]",
+                    )}
+                  ></div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Event Modal */}
+      {showEventModal && selectedDate && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+          <div className="bg-white rounded-lg w-4/5 max-h-[80%] overflow-auto p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold">Events for {selectedDate.split("-").slice(1).join("/")}</h2>
+              <button onClick={() => setShowEventModal(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium">Your Schedule</h3>
+              {eventsForSelectedDate.filter((e) => e.added).length > 0 ? (
+                <div className="space-y-2">
+                  {eventsForSelectedDate
+                    .filter((e) => e.added)
+                    .map((event) => (
+                      <div key={event.id} className="border rounded-lg p-3">
+                        <div className="flex justify-between">
+                          <h4 className="font-medium">{event.title}</h4>
+                          <button onClick={() => removeEvent(event.id)} className="text-red-500 text-xs">
+                            Remove
+                          </button>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {event.time} · {event.location}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">Organized by: {event.organizer}</div>
+
+                        {/* Friends attending */}
+                        {event.friendsAttending && event.friendsAttending.length > 0 && (
+                          <div className="mt-2 flex items-center">
+                            <span className="text-xs text-gray-500 mr-1">Friends:</span>
+                            <div className="flex -space-x-2">
+                              {getFriendsAttendingEvent(event.id).map((friend, idx) => (
+                                <div
+                                  key={friend.id}
+                                  className="w-5 h-5 rounded-full overflow-hidden border border-white"
+                                >
+                                  <Image
+                                    src={friend.image || "/placeholder.svg"}
+                                    alt={friend.name}
+                                    width={20}
+                                    height={20}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-2 text-sm">No events in your schedule</div>
+              )}
+
+              <h3 className="text-sm font-medium mt-4">Available Events</h3>
+              {eventsForSelectedDate.filter((e) => !e.added).length > 0 ? (
+                <div className="space-y-2">
+                  {eventsForSelectedDate
+                    .filter((e) => !e.added)
+                    .map((event) => (
+                      <div key={event.id} className="border rounded-lg p-3">
+                        <div className="flex justify-between">
+                          <div>
+                            <h4 className="font-medium">{event.title}</h4>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {event.time} · {event.location}
+                            </div>
+
+                            {/* Friends attending */}
+                            {event.friendsAttending && event.friendsAttending.length > 0 && (
+                              <div className="mt-1 flex items-center">
+                                <span className="text-xs text-gray-500 mr-1">Friends going:</span>
+                                <span className="text-xs text-[#5a62ff]">
+                                  {getFriendsAttendingEvent(event.id).length}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <button onClick={() => onEventClick(event)} className="text-[#5a62ff] text-xs">
+                              Details
+                            </button>
+                            <button
+                              onClick={() => addEventToSchedule(event.id)}
+                              className="bg-[#5a62ff] text-white px-2 py-1 rounded text-xs"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-2 text-sm">No available events for this day</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Add the EventsScreen component definition after the CalendarScreen component
+
+function EventsScreen({
+  events,
+  onEventClick,
+  selectedDate,
+  setSelectedDate,
+  activeTimeFilter,
+  setActiveTimeFilter,
+  showMapFullscreen,
+  setShowMapFullscreen,
+  categories,
+  activeCategory,
+  setActiveCategory,
+  searchQuery,
+  setSearchQuery,
+  searchInputRef,
+  showFriendEvents,
+  setShowFriendEvents,
+  friends,
+  getFriendsAttendingEvent,
+}: {
+  events: Event[]
+  onEventClick: (event: Event) => void
+  selectedDate: string | null
+  setSelectedDate: (date: string | null) => void
+  activeTimeFilter: "today" | "tomorrow" | "weekend" | null
+  setActiveTimeFilter: (filter: "today" | "tomorrow" | "weekend" | null) => void
+  showMapFullscreen: boolean
+  setShowMapFullscreen: (show: boolean) => void
+  categories: Category[]
+  activeCategory: string | null
+  setActiveCategory: (category: string | null) => void
+  searchQuery: string
+  setSearchQuery: (query: string) => void
+  searchInputRef: React.RefObject<HTMLInputElement>
+  showFriendEvents: boolean
+  setShowFriendEvents: (show: boolean) => void
+  friends: Friend[]
+  getFriendsAttendingEvent: (eventId: string) => Friend[]
+}) {
+  const todayEvents = events.filter((e) => e.added && (selectedDate ? e.date === selectedDate : true))
+  const suggestedEvents = events.filter((e) => !e.added)
+  const nearbyEvents = events.filter((e) => !e.added)
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      {/* Search Bar */}
+      <div className="p-3 border-b">
+        <div className="bg-gray-100 rounded-full px-3 py-1 flex items-center">
+          <Search className="w-4 h-4 text-gray-400 mr-2" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Event or User"
+            className="bg-transparent w-full text-sm focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {selectedDate && (
+        <div className="p-2 flex items-center">
+          <button onClick={() => setSelectedDate(null)} className="flex items-center text-sm text-[#5a62ff]">
+            <ChevronLeft className="w-4 h-4" />
+            Back to all events
+          </button>
+          <div className="ml-2 text-sm font-medium">Events for {selectedDate.split("-").slice(1).join("/")}</div>
+        </div>
+      )}
+
+      {/* Categories */}
+      {!selectedDate && (
+        <>
+          <div className="flex p-2 gap-2">
+            <div
+              className={cn(
+                "rounded-lg p-2 flex-1 text-center cursor-pointer",
+                activeTimeFilter === "today" ? "bg-[#ffbcea]" : "bg-gray-100",
+              )}
+              onClick={() => setActiveTimeFilter(activeTimeFilter === "today" ? null : "today")}
+            >
+              Today
+            </div>
+            <div
+              className={cn(
+                "rounded-lg p-2 flex-1 text-center cursor-pointer",
+                activeTimeFilter === "tomorrow" ? "bg-[#ffe9c4]" : "bg-gray-100",
+              )}
+              onClick={() => setActiveTimeFilter(activeTimeFilter === "tomorrow" ? null : "tomorrow")}
+            >
+              Tomorrow
+            </div>
+            <div
+              className={cn(
+                "rounded-lg p-2 flex-1 text-center cursor-pointer",
+                activeTimeFilter === "weekend" ? "bg-[#c6ffd8]" : "bg-gray-100",
+              )}
+              onClick={() => setActiveTimeFilter(activeTimeFilter === "weekend" ? null : "weekend")}
+            >
+              This Weekend
+            </div>
+          </div>
+
+          {/* Event Categories */}
+          <div className="p-2">
+            <div className="text-xs font-semibold mb-2">CATEGORIES</div>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <div
+                  key={category.id}
+                  onClick={() => setActiveCategory(activeCategory === category.id ? null : category.id)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs flex items-center gap-1 cursor-pointer",
+                    activeCategory === category.id ? "bg-[#5a62ff] text-white" : "bg-gray-100",
+                  )}
+                  style={activeCategory !== category.id ? { backgroundColor: category.color } : {}}
+                >
+                  {category.icon}
+                  <span>{category.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Friends Events Toggle */}
+          <div className="px-2 mb-2">
+            <button
+              onClick={() => setShowFriendEvents(!showFriendEvents)}
+              className={cn(
+                "w-full py-2 rounded-lg text-sm flex items-center justify-center",
+                showFriendEvents ? "bg-[#5a62ff] text-white" : "bg-gray-100 text-gray-800",
+              )}
+            >
+              <Users className="w-4 h-4 mr-2" />
+              {showFriendEvents ? "All Events" : "Show Friends' Events"}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Your Events */}
+      {todayEvents.length > 0 && (
+        <div className="p-2">
+          <div className="text-xs font-semibold mb-1">YOUR EVENTS</div>
+          <div className="space-y-2">
+            {todayEvents.map((event) => (
+              <div
+                key={event.id}
+                className="bg-white rounded-lg shadow p-3 flex items-center"
+                onClick={() => onEventClick(event)}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#5a62ff] flex items-center justify-center text-white mr-3">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium">{event.title}</div>
+                  <div className="text-xs text-gray-500">
+                    {event.time} · {event.location}
+                  </div>
+                </div>
+                <Check className="w-5 h-5 text-green-500" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Map */}
+      {!selectedDate && (
+        <div className="p-2">
+          <div className="flex justify-between items-center mb-1">
+            <div className="text-xs font-semibold">NEARBY EVENTS</div>
+            <button onClick={() => setShowMapFullscreen(!showMapFullscreen)} className="text-xs text-[#5a62ff]">
+              {showMapFullscreen ? "Hide Map" : "See Map"}
+            </button>
+          </div>
+          <div
+            className={cn(
+              "relative bg-gray-200 rounded-lg overflow-hidden transition-all duration-300",
+              showMapFullscreen ? "h-80" : "h-32",
+            )}
+          >
+            <Image
+              src="/placeholder.svg?height=350&width=350"
+              alt="Map"
+              width={350}
+              height={350}
+              className="w-full h-full object-cover"
+            />
+
+            {/* Event Markers */}
+            {nearbyEvents.map((event, index) => (
+              <div
+                key={event.id}
+                className="absolute w-6 h-6 rounded-full bg-[#5a62ff] flex items-center justify-center text-white cursor-pointer"
+                style={{
+                  top: `${30 + index * 15}%`,
+                  left: `${20 + index * 15}%`,
+                }}
+                onClick={() => onEventClick(event)}
+              >
+                <MapPin className="w-3 h-3" />
+              </div>
+            ))}
+
+            {/* Current Location */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center">
+              <div className="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suggested Events */}
+      <div className="p-2 flex-1 overflow-auto">
+        <div className="flex justify-between items-center mb-1">
+          <div className="text-xs font-semibold">
+            {showFriendEvents ? "FRIENDS ARE ATTENDING" : "SUGGESTED FOR YOU"}
+          </div>
+          <div className="text-xs">See All</div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {suggestedEvents.map((event) => (
+            <div
+              key={event.id}
+              className="bg-white rounded-lg overflow-hidden shadow"
+              onClick={() => onEventClick(event)}
+            >
+              <div className="relative h-24">
+                {event.image ? (
+                  <Image
+                    src={event.image || "/placeholder.svg"}
+                    alt={event.title}
+                    width={150}
+                    height={100}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "w-full h-full flex items-center justify-center",
+                      event.color ? event.color : "bg-[#ff5acb]",
+                    )}
+                  >
+                    {(event.category && categories.find((c) => c.id === event.category)?.icon) || (
+                      <Plus className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                )}
+                <button className="absolute bottom-2 right-2 w-5 h-5 rounded-full bg-white flex items-center justify-center">
+                  <div className="w-3 h-3 rounded-full bg-[#ff5acb]"></div>
+                </button>
+              </div>
+              <div className="p-2">
+                <div className="text-xs font-semibold">{event.title}</div>
+                <div className="text-xs flex items-center mt-1">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {event.date.split("-").slice(1).join("/")} · {event.time}
+                </div>
+                <div className="text-xs flex items-center mt-1">
+                  <Users className="w-3 h-3 mr-1" />
+                  {event.organizer} · {event.interested}+ interested
+                </div>
+
+                {/* Show friends attending */}
+                {event.friendsAttending && event.friendsAttending.length > 0 && (
+                  <div className="mt-1 flex items-center">
+                    <div className="flex -space-x-2 mr-1">
+                      {getFriendsAttendingEvent(event.id)
+                        .slice(0, 2)
+                        .map((friend) => (
+                          <div key={friend.id} className="w-4 h-4 rounded-full overflow-hidden border border-white">
+                            <Image
+                              src={friend.image || "/placeholder.svg"}
+                              alt={friend.name}
+                              width={16}
+                              height={16}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                    </div>
+                    <span className="text-xs text-[#5a62ff]">
+                      {getFriendsAttendingEvent(event.id).length} friends going
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Connect with Friends */}
+      <div className="p-2 mb-12">
+        <div className="text-xs font-semibold mb-1">CONNECT WITH FRIENDS</div>
+        <div className="h-12 bg-[#aca7fa] rounded-lg flex items-center justify-center">
+          <button className="flex items-center text-sm font-medium">
+            <UserPlus className="w-4 h-4 mr-2" />
+            Find Friends
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function MobileApp() {
+  const [activeTab, setActiveTab] = useState<number>(0)
+  const [events, setEvents] = useState<Event[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [friends, setFriends] = useState<Friend[]>([])
+  const [showEventDetails, setShowEventDetails] = useState<Event | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [showAddGoal, setShowAddGoal] = useState(false)
+  const [activeTimeFilter, setActiveTimeFilter] = useState<"today" | "tomorrow" | "weekend" | null>(null)
+  const [showMapFullscreen, setShowMapFullscreen] = useState(false)
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
+  const [showAddEventToGoal, setShowAddEventToGoal] = useState<string | null>(null)
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
+  const [showEventModal, setShowEventModal] = useState(false)
+  const [showConnectModal, setShowConnectModal] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeProfileTab, setActiveProfileTab] = useState<"goals" | "friends">("goals")
+  const [showFriendEvents, setShowFriendEvents] = useState(false)
+  const [connectionCode, setConnectionCode] = useState("FRIEND123")
+  const [showCopiedMessage, setShowCopiedMessage] = useState(false)
+  const [friendCodeInput, setFriendCodeInput] = useState("")
+
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const [newEvent, setNewEvent] = useState<Partial<Event>>({
+    title: "",
+    date: "",
+    time: "",
+    location: "",
+    organizer: "",
+    tags: [],
+  })
+
+  const [newGoal, setNewGoal] = useState<Partial<Goal>>({
+    title: "",
+    color: "#ffbcea",
+  })
+
+  // Define event categories
+  const categories: Category[] = [
+    { id: "music", name: "Music", icon: <Music className="w-4 h-4" />, color: "#ffbcea" },
+    { id: "food", name: "Food & Drink", icon: <Utensils className="w-4 h-4" />, color: "#ffe9c4" },
+    { id: "education", name: "Education", icon: <BookOpen className="w-4 h-4" />, color: "#c6ffd8" },
+    { id: "photography", name: "Photography", icon: <Camera className="w-4 h-4" />, color: "#aca7fa" },
+    { id: "business", name: "Business", icon: <Briefcase className="w-4 h-4" />, color: "#5a62ff" },
+    { id: "sports", name: "Sports", icon: <Dumbbell className="w-4 h-4" />, color: "#ff5acb" },
+    { id: "arts", name: "Arts & Crafts", icon: <Palette className="w-4 h-4" />, color: "#c6ffd8" },
+    { id: "gaming", name: "Gaming", icon: <Gamepad2 className="w-4 h-4" />, color: "#aca7fa" },
+    { id: "entertainment", name: "Entertainment", icon: <Ticket className="w-4 h-4" />, color: "#ffbcea" },
+    { id: "academic", name: "Academic", icon: <GraduationCap className="w-4 h-4" />, color: "#ffe9c4" },
+    { id: "social", name: "Social", icon: <Coffee className="w-4 h-4" />, color: "#5a62ff" },
+    { id: "other", name: "Other", icon: <Zap className="w-4 h-4" />, color: "#ff5acb" },
+  ]
+
+  // Initialize with sample events
+  useEffect(() => {
+    setEvents([
+      {
+        id: "1",
+        title: "Crashing Hotels Album Release Party",
+        date: getTodayDate(),
+        time: "7 PM",
+        location: "White Glove",
+        organizer: "Liam",
+        interested: 75,
+        added: false,
+        latitude: 37.7749,
+        longitude: -122.4194,
+        category: "music",
+        tags: ["music", "concert", "indie", "album release"],
+        friendsAttending: ["2", "3"],
+      },
+      {
+        id: "2",
+        title: "Math Times - Studio",
+        date: getTomorrowDate(),
+        time: "3 PM",
+        location: "Downtown Studio",
+        organizer: "Art",
+        interested: 345,
+        color: "#5a62ff",
+        added: false,
+        latitude: 37.7833,
+        longitude: -122.4167,
+        category: "education",
+        tags: ["education", "math", "workshop", "academic"],
+        friendsAttending: ["1"],
+      },
+      {
+        id: "3",
+        title: "NYE Business Liphtsm",
+        date: getWeekendDate(),
+        time: "6 PM",
+        location: "Business Center",
+        organizer: "Apologies Association",
+        interested: 120,
+        added: false,
+        latitude: 37.7694,
+        longitude: -122.4862,
+        category: "business",
+        tags: ["business", "networking", "professional"],
+      },
+      {
+        id: "4",
+        title: "True Watch Show",
+        date: getTodayDate(),
+        time: "8 PM",
+        location: "Comedy Club",
+        organizer: "Humor U",
+        interested: 200,
+        added: false,
+        latitude: 37.7835,
+        longitude: -122.4096,
+        category: "entertainment",
+        tags: ["comedy", "show", "entertainment"],
+        friendsAttending: ["4"],
+      },
+      {
+        id: "5",
+        title: "Photography Workshop",
+        date: getTomorrowDate(),
+        time: "4 PM",
+        location: "Art Gallery",
+        organizer: "Creative Minds",
+        interested: 50,
+        added: false,
+        latitude: 37.7865,
+        longitude: -122.4307,
+        category: "photography",
+        tags: ["photography", "workshop", "arts", "creative"],
+        friendsAttending: ["2"],
+      },
+      {
+        id: "6",
+        title: "Food Festival",
+        date: getDateOffset(3),
+        time: "12 PM",
+        location: "City Park",
+        organizer: "Food Network",
+        interested: 500,
+        added: false,
+        latitude: 37.7699,
+        longitude: -122.4199,
+        category: "food",
+        tags: ["food", "festival", "outdoor", "culinary"],
+        friendsAttending: ["1", "3"],
+      },
+      {
+        id: "7",
+        title: "Jazz Night",
+        date: getDateOffset(2),
+        time: "9 PM",
+        location: "Blue Note Club",
+        organizer: "Jazz Society",
+        interested: 120,
+        added: false,
+        latitude: 37.7849,
+        longitude: -122.4294,
+        category: "music",
+        tags: ["music", "jazz", "nightlife"],
+      },
+      {
+        id: "8",
+        title: "Coding Bootcamp",
+        date: getDateOffset(4),
+        time: "10 AM",
+        location: "Tech Hub",
+        organizer: "Code Academy",
+        interested: 75,
+        added: false,
+        latitude: 37.7829,
+        longitude: -122.4094,
+        category: "education",
+        tags: ["coding", "technology", "education", "workshop"],
+        friendsAttending: ["4"],
+      },
+      {
+        id: "9",
+        title: "Networking Mixer",
+        date: getDateOffset(1),
+        time: "6 PM",
+        location: "Downtown Hotel",
+        organizer: "Business Network",
+        interested: 150,
+        added: false,
+        latitude: 37.7879,
+        longitude: -122.4074,
+        category: "business",
+        tags: ["business", "networking", "professional", "career"],
+      },
+      {
+        id: "10",
+        title: "Street Photography Walk",
+        date: getWeekendDate(),
+        time: "2 PM",
+        location: "City Center",
+        organizer: "Photo Club",
+        interested: 45,
+        added: false,
+        latitude: 37.7819,
+        longitude: -122.4154,
+        category: "photography",
+        tags: ["photography", "outdoor", "walking", "creative"],
+      },
+      {
+        id: "11",
+        title: "Basketball Tournament",
+        date: getDateOffset(5),
+        time: "1 PM",
+        location: "Community Center",
+        organizer: "Sports League",
+        interested: 120,
+        added: false,
+        latitude: 37.7839,
+        longitude: -122.4254,
+        category: "sports",
+        tags: ["sports", "basketball", "tournament", "competition"],
+        friendsAttending: ["1", "2"],
+      },
+      {
+        id: "12",
+        title: "Pottery Workshop",
+        date: getDateOffset(2),
+        time: "11 AM",
+        location: "Art Studio",
+        organizer: "Craft Guild",
+        interested: 30,
+        added: false,
+        latitude: 37.7859,
+        longitude: -122.4174,
+        category: "arts",
+        tags: ["arts", "crafts", "pottery", "workshop", "creative"],
+        friendsAttending: ["3"],
+      },
+      {
+        id: "13",
+        title: "Board Game Night",
+        date: getTodayDate(),
+        time: "6 PM",
+        location: "Game Cafe",
+        organizer: "Game Society",
+        interested: 40,
+        added: false,
+        latitude: 37.7889,
+        longitude: -122.4114,
+        category: "gaming",
+        tags: ["games", "board games", "social", "entertainment"],
+        friendsAttending: ["2", "4"],
+      },
+      {
+        id: "14",
+        title: "Science Fair",
+        date: getDateOffset(6),
+        time: "9 AM",
+        location: "Science Museum",
+        organizer: "Science Foundation",
+        interested: 200,
+        added: false,
+        latitude: 37.7899,
+        longitude: -122.4014,
+        category: "academic",
+        tags: ["science", "education", "academic", "exhibition"],
+      },
+      {
+        id: "15",
+        title: "Coffee Tasting",
+        date: getDateOffset(3),
+        time: "10 AM",
+        location: "Artisan Cafe",
+        organizer: "Coffee Enthusiasts",
+        interested: 35,
+        added: false,
+        latitude: 37.7909,
+        longitude: -122.3994,
+        category: "food",
+        tags: ["coffee", "tasting", "food", "drinks"],
+        friendsAttending: ["1"],
+      },
+    ])
+
+    setGoals([
+      {
+        id: "1",
+        title: "Attend Club Meetings",
+        progress: 60,
+        color: "#ffbcea",
+        events: [],
+      },
+      {
+        id: "2",
+        title: "Try a New Hobby",
+        progress: 30,
+        color: "#ffe9c4",
+        events: [],
+      },
+      {
+        id: "3",
+        title: "Attend Outdoor Events",
+        progress: 50,
+        color: "#c6ffd8",
+        events: [],
+      },
+    ])
+
+    setFriends([
+      {
+        id: "1",
+        name: "Alex Johnson",
+        image: "/placeholder.svg?height=50&width=50",
+        status: "connected",
+        events: ["2", "6", "11", "15"],
+      },
+      {
+        id: "2",
+        name: "Taylor Smith",
+        image: "/placeholder.svg?height=50&width=50",
+        status: "connected",
+        events: ["1", "5", "11", "13"],
+      },
+      {
+        id: "3",
+        name: "Jordan Lee",
+        image: "/placeholder.svg?height=50&width=50",
+        status: "connected",
+        events: ["1", "6", "12"],
+      },
+      {
+        id: "4",
+        name: "Casey Morgan",
+        image: "/placeholder.svg?height=50&width=50",
+        status: "connected",
+        events: ["4", "8", "13"],
+      },
+      {
+        id: "5",
+        name: "Riley Parker",
+        image: "/placeholder.svg?height=50&width=50",
+        status: "pending",
+      },
+      {
+        id: "6",
+        name: "Jamie Wilson",
+        image: "/placeholder.svg?height=50&width=50",
+        status: "suggested",
+      },
+    ])
+  }, [])
+
+  // Helper functions for dates
+  function getTodayDate() {
+    const today = new Date()
+    return today.toISOString().split("T")[0]
+  }
+
+  function getTomorrowDate() {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    return tomorrow.toISOString().split("T")[0]
+  }
+
+  function getWeekendDate() {
+    const today = new Date()
+    const dayOfWeek = today.getDay() // 0 is Sunday, 6 is Saturday
+    const daysUntilSaturday = dayOfWeek === 6 ? 0 : 6 - dayOfWeek
+    const weekend = new Date()
+    weekend.setDate(today.getDate() + daysUntilSaturday)
+    return weekend.toISOString().split("T")[0]
+  }
+
+  function getDateOffset(daysOffset: number) {
+    const date = new Date()
+    date.setDate(date.getDate() + daysOffset)
+    return date.toISOString().split("T")[0]
+  }
+
+  function isWeekend(dateStr: string) {
+    const date = new Date(dateStr)
+    const day = date.getDay()
+    return day === 0 || day === 6 // 0 is Sunday, 6 is Saturday
+  }
+
+  function getDaysInMonth(year: number, month: number) {
+    return new Date(year, month + 1, 0).getDate()
+  }
+
+  function getFirstDayOfMonth(year: number, month: number) {
+    return new Date(year, month, 1).getDay()
+  }
+
+  function formatMonthYear(date: Date) {
+    return date.toLocaleString("default", { month: "long", year: "numeric" })
+  }
+
+  function generateCalendarDays() {
+    const year = currentMonth.getFullYear()
+    const month = currentMonth.getMonth()
+
+    const daysInMonth = getDaysInMonth(year, month)
+    const firstDay = getFirstDayOfMonth(year, month)
+
+    const days = []
+
+    // Add previous month's days
+    const prevMonthDays = getDaysInMonth(year, month - 1)
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const day = prevMonthDays - i
+      const date = new Date(year, month - 1, day)
+      days.push({
+        date: date.toISOString().split("T")[0],
+        day,
+        isCurrentMonth: false,
+        hasEvents: dateHasEvents(date.toISOString().split("T")[0]),
+      })
+    }
+
+    // Add current month's days
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = new Date(year, month, i)
+      days.push({
+        date: date.toISOString().split("T")[0],
+        day: i,
+        isCurrentMonth: true,
+        hasEvents: dateHasEvents(date.toISOString().split("T")[0]),
+      })
+    }
+
+    // Add next month's days to fill the calendar
+    const totalDays = days.length
+    const remainingDays = 42 - totalDays // 6 rows of 7 days
+
+    for (let i = 1; i <= remainingDays; i++) {
+      const date = new Date(year, month + 1, i)
+      days.push({
+        date: date.toISOString().split("T")[0],
+        day: i,
+        isCurrentMonth: false,
+        hasEvents: dateHasEvents(date.toISOString().split("T")[0]),
+      })
+    }
+
+    return days
+  }
+
+  const addEventToSchedule = (eventId: string) => {
+    setEvents(
+      events.map((event) => {
+        if (event.id === eventId) {
+          return { ...event, added: true }
+        }
+        return event
+      }),
+    )
+    setShowEventDetails(null)
+  }
+
+  const removeEventFromSchedule = (eventId: string) => {
+    setEvents(
+      events.map((event) => {
+        if (event.id === eventId) {
+          // Remove from goal if assigned
+          if (event.goalId) {
+            setGoals(
+              goals.map((goal) => {
+                if (goal.id === event.goalId) {
+                  return {
+                    ...goal,
+                    events: goal.events.filter((id) => id !== eventId),
+                  }
+                }
+                return goal
+              }),
+            )
+          }
+          return { ...event, added: false, goalId: undefined, completed: false }
+        }
+        return event
+      }),
+    )
+  }
+
+  const handleAddNewEvent = () => {
+    if (newEvent.title && newEvent.date && newEvent.time && newEvent.location) {
+      const newEventObj: Event = {
+        id: Date.now().toString(),
+        title: newEvent.title || "",
+        date: newEvent.date || "",
+        time: newEvent.time || "",
+        location: newEvent.location || "",
+        organizer: newEvent.organizer || "You",
+        interested: 0,
+        added: true,
+        goalId: newEvent.goalId,
+        category: newEvent.category,
+        tags: newEvent.tags || [],
+        // Random coordinates near San Francisco for demo
+        latitude: 37.78 + (Math.random() * 0.02 - 0.01),
+        longitude: -122.41 + (Math.random() * 0.02 - 0.01),
+      }
+
+      setEvents([...events, newEventObj])
+
+      // If assigned to a goal, update the goal
+      if (newEvent.goalId) {
+        setGoals(
+          goals.map((goal) => {
+            if (goal.id === newEvent.goalId) {
+              return {
+                ...goal,
+                events: [...goal.events, newEventObj.id],
+              }
+            }
+            return goal
+          }),
+        )
+      }
+
+      setNewEvent({
+        title: "",
+        date: "",
+        time: "",
+        location: "",
+        organizer: "",
+        tags: [],
+      })
+
+      // Switch to discover tab
+      setActiveTab(3)
+    }
+  }
+
+  const handleAddNewGoal = () => {
+    if (newGoal.title) {
+      const newGoalObj: Goal = {
+        id: Date.now().toString(),
+        title: newGoal.title || "",
+        progress: 0,
+        color: newGoal.color || "#ffbcea",
+        events: [],
+      }
+
+      setGoals([...goals, newGoalObj])
+      setNewGoal({
+        title: "",
+        color: "#ffbcea",
+      })
+      setShowAddGoal(false)
+    }
+  }
+
+  const updateGoal = (goalId: string, updates: Partial<Goal>) => {
+    setGoals(
+      goals.map((goal) => {
+        if (goal.id === goalId) {
+          return { ...goal, ...updates }
+        }
+        return goal
+      }),
+    )
+  }
+
+  // Fix the deleteGoal function which has a syntax error
+
+  const deleteGoal = (goalId: string) => {
+    // Remove goal assignments from events
+    setEvents(
+      events.map((event) => {
+        if (event.goalId === goalId) {
+          return { ...event, goalId: undefined }
+        }
+        return event
+      }),
+    )
+
+    // Remove the goal
+    setGoals(goals.filter((goal) => goal.id !== goalId))
+    setEditingGoal(null)
+  }
+
+  const toggleEventCompletion = (eventId: string) => {
+    setEvents(
+      events.map((event) => {
+        if (event.id === eventId) {
+          const newCompletedState = !event.completed
+
+          // Update goal progress if event is assigned to a goal
+          if (event.goalId) {
+            const goal = goals.find((g) => g.id === event.goalId)
+            if (goal) {
+              const goalEvents = events.filter((e) => e.goalId === goal.id)
+              const completedCount = goalEvents.filter((e) =>
+                e.id === eventId ? newCompletedState : e.completed,
+              ).length
+
+              const newProgress = Math.round((completedCount / goalEvents.length) * 100)
+
+              updateGoal(goal.id, { progress: newProgress })
+            }
+          }
+
+          return { ...event, completed: newCompletedState }
+        }
+        return event
+      }),
+    )
+  }
+
+  const assignEventToGoal = (eventId: string, goalId: string | undefined) => {
+    // Remove from previous goal if any
+    const event = events.find((e) => e.id === eventId)
+    if (event?.goalId && event.goalId !== goalId) {
+      setGoals(
+        goals.map((goal) => {
+          if (goal.id === event.goalId) {
+            return {
+              ...goal,
+              events: goal.events.filter((id) => id !== eventId),
+            }
+          }
+          return goal
+        }),
+      )
+    }
+
+    // Add to new goal
+    if (goalId) {
+      setGoals(
+        goals.map((goal) => {
+          if (goal.id === goalId && !goal.events.includes(eventId)) {
+            return {
+              ...goal,
+              events: [...goal.events, eventId],
+            }
+          }
+          return goal
+        }),
+      )
+    }
+
+    // Update event
+    setEvents(
+      events.map((event) => {
+        if (event.id === eventId) {
+          return { ...event, goalId }
+        }
+        return event
+      }),
+    )
+  }
+
+  const getFilteredEvents = () => {
+    let filtered = events
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter((event) => {
+        // Search in title, location, organizer
+        if (
+          event.title.toLowerCase().includes(query) ||
+          event.location.toLowerCase().includes(query) ||
+          event.organizer.toLowerCase().includes(query)
+        ) {
+          return true
+        }
+
+        // Search in category
+        if (event.category && event.category.toLowerCase().includes(query)) {
+          return true
+        }
+
+        // Search in tags
+        if (event.tags && event.tags.some((tag) => tag.toLowerCase().includes(query))) {
+          return true
+        }
+
+        return false
+      })
+    }
+
+    // Apply time filter
+    if (activeTimeFilter) {
+      switch (activeTimeFilter) {
+        case "today":
+          filtered = filtered.filter((event) => event.date === getTodayDate())
+          break
+        case "tomorrow":
+          filtered = filtered.filter((event) => event.date === getTomorrowDate())
+          break
+        case "weekend":
+          filtered = filtered.filter((event) => isWeekend(event.date))
+          break
+      }
+    }
+
+    // Apply category filter
+    if (activeCategory) {
+      filtered = filtered.filter((event) => event.category === activeCategory)
+    }
+
+    // Apply date filter
+    if (selectedDate) {
+      filtered = filtered.filter((event) => event.date === selectedDate)
+    }
+
+    // Apply friends filter
+    if (showFriendEvents) {
+      const connectedFriendIds = friends.filter((friend) => friend.status === "connected").map((friend) => friend.id)
+
+      filtered = filtered.filter(
+        (event) => event.friendsAttending && event.friendsAttending.some((id) => connectedFriendIds.includes(id)),
+      )
+    }
+
+    return filtered
+  }
+
+  const dateHasEvents = (date: string) => {
+    return events.some((event) => event.date === date)
+  }
+
+  const getEventsForDate = (date: string) => {
+    return events.filter((event) => event.date === date)
+  }
+
+  const getAvailableEventsForGoal = (goalId: string) => {
+    return events.filter((event) => event.added && !event.goalId)
+  }
+
+  const addEventToGoal = (eventId: string, goalId: string) => {
+    // Update the event
+    setEvents(
+      events.map((event) => {
+        if (event.id === eventId) {
+          return { ...event, goalId }
+        }
+        return event
+      }),
+    )
+
+    // Update the goal
+    setGoals(
+      goals.map((goal) => {
+        if (goal.id === goalId) {
+          return {
+            ...goal,
+            events: [...goal.events, eventId],
+          }
+        }
+        return goal
+      }),
+    )
+
+    setShowAddEventToGoal(null)
+  }
+
+  const previousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))
+  }
+
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))
+  }
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    // Reset filters when searching
+    if (query.trim()) {
+      setActiveTimeFilter(null)
+      setActiveCategory(null)
+      setSelectedDate(null)
+    }
+  }
+
+  const handleConnectWithFriend = () => {
+    if (friendCodeInput.trim()) {
+      // In a real app, this would validate the code against a database
+      // For demo purposes, we'll just add a new friend
+      const newFriend: Friend = {
+        id: `new-${Date.now()}`,
+        name: `Friend (${friendCodeInput})`,
+        image: "/placeholder.svg?height=50&width=50",
+        status: "connected",
+        events: [],
+      }
+
+      setFriends([...friends, newFriend])
+      setFriendCodeInput("")
+      setShowConnectModal(false)
+    }
+  }
+
+  const copyConnectionCode = () => {
+    navigator.clipboard.writeText(connectionCode).then(() => {
+      setShowCopiedMessage(true)
+      setTimeout(() => setShowCopiedMessage(false), 2000)
+    })
+  }
+
+  const getFriendsAttendingEvent = (eventId: string) => {
+    return friends.filter((friend) => friend.events && friend.events.includes(eventId) && friend.status === "connected")
+  }
+
+  const tabs = [
+    { icon: <Cog className="w-5 h-5" />, component: <LoginScreen /> },
+    {
+      icon: <User className="w-5 h-5" />,
+      component: showAddGoal ? (
+        <AddGoalScreen newGoal={newGoal} setNewGoal={setNewGoal} onAddGoal={handleAddNewGoal} />
+      ) : (
+        <ProfileScreen
+          goals={goals}
+          events={events}
+          friends={friends}
+          onAddGoal={() => setShowAddGoal(true)}
+          onEditGoal={setEditingGoal}
+          onDeleteGoal={deleteGoal}
+          onToggleEventCompletion={toggleEventCompletion}
+          onAddEventToGoal={setShowAddEventToGoal}
+          availableEvents={events.filter((e) => e.added && !e.goalId)}
+          addEventToGoal={addEventToGoal}
+          showAddEventToGoal={showAddEventToGoal}
+          activeTab={activeProfileTab}
+          setActiveTab={setActiveProfileTab}
+          onConnectClick={() => setShowConnectModal(true)}
+        />
+      ),
+    },
+    {
+      icon: <Calendar className="w-5 h-5" />,
+      component: (
+        <CalendarScreen
+          events={events}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          onDateClick={(date) => {
+            setSelectedDate(date)
+            setShowEventModal(true)
+          }}
+          removeEvent={removeEventFromSchedule}
+          currentMonth={currentMonth}
+          previousMonth={previousMonth}
+          nextMonth={nextMonth}
+          formatMonthYear={formatMonthYear}
+          calendarDays={generateCalendarDays()}
+          showEventModal={showEventModal}
+          setShowEventModal={setShowEventModal}
+          onEventClick={setShowEventDetails}
+          addEventToSchedule={addEventToSchedule}
+          friends={friends}
+          getFriendsAttendingEvent={getFriendsAttendingEvent}
+        />
+      ),
+    },
+    {
+      icon: <Search className="w-5 h-5" />,
+      component: (
+        <EventsScreen
+          events={getFilteredEvents()}
+          onEventClick={setShowEventDetails}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          activeTimeFilter={activeTimeFilter}
+          setActiveTimeFilter={setActiveTimeFilter}
+          showMapFullscreen={showMapFullscreen}
+          setShowMapFullscreen={setShowMapFullscreen}
+          categories={categories}
+          activeCategory={activeCategory}
+          setActiveCategory={setActiveCategory}
+          searchQuery={searchQuery}
+          setSearchQuery={handleSearch}
+          searchInputRef={searchInputRef}
+          showFriendEvents={showFriendEvents}
+          setShowFriendEvents={setShowFriendEvents}
+          friends={friends}
+          getFriendsAttendingEvent={getFriendsAttendingEvent}
+        />
+      ),
+    },
+    {
+      icon: <Plus className="w-5 h-5" />,
+      component: (
+        <AddEventScreen
+          newEvent={newEvent}
+          setNewEvent={setNewEvent}
+          onAddEvent={handleAddNewEvent}
+          goals={goals}
+          categories={categories}
+        />
+      ),
+    },
+  ]
+
+  return (
+    <div className="flex justify-center items-center min-h-screen bg-gray-100 p-4">
+      <div className="w-full max-w-sm h-[600px] bg-white rounded-xl overflow-hidden shadow-lg relative">
+        {/* Status Bar */}
+        <div className="h-6 bg-black text-white text-xs flex items-center justify-between px-2">
+          <div className="flex items-center">
+            <span>9:41 AM</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <span>100%</span>
+            <div className="w-4 h-2 bg-white rounded-sm"></div>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="h-[calc(100%-6rem)]">{tabs[activeTab].component}</div>
+
+        {/* Navigation Bar */}
+        <div className="h-12 bg-[#aca7fa] flex justify-around items-center absolute bottom-0 w-full">
+          {tabs.map((tab, index) => (
+            <button
+              key={index}
+              onClick={() => setActiveTab(index)}
+              className={cn("p-2 rounded-full", activeTab === index ? "bg-[#5a62ff] text-white" : "text-black")}
+            >
+              {tab.icon}
+            </button>
+          ))}
+        </div>
+
+        {/* Event Details Modal */}
+        {showEventDetails && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white rounded-lg w-4/5 max-h-[80%] overflow-auto p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">{showEventDetails.title}</h2>
+                <button onClick={() => setShowEventDetails(null)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                {showEventDetails.image ? (
+                  <Image
+                    src={showEventDetails.image || "/placeholder.svg"}
+                    alt={showEventDetails.title}
+                    width={300}
+                    height={150}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "w-full h-32 rounded-lg flex items-center justify-center",
+                      showEventDetails.color ? showEventDetails.color : "bg-[#ff5acb]",
+                    )}
+                  >
+                    {(showEventDetails.category &&
+                      categories.find((c) => c.id === showEventDetails.category)?.icon) || (
+                      <Calendar className="w-8 h-8 text-white" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center">
+                  <Clock className="w-4 h-4 mr-2" />
+                  <span>
+                    {showEventDetails.date.split("-").slice(1).join("/")} at {showEventDetails.time}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <span>{showEventDetails.location}</span>
+                </div>
+                <div className="flex items-center">
+                  <Users className="w-4 h-4 mr-2" />
+                  <span>
+                    {showEventDetails.organizer} · {showEventDetails.interested}+ interested
+                  </span>
+                </div>
+
+                {/* Tags */}
+                {showEventDetails.tags && showEventDetails.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {showEventDetails.tags.map((tag, index) => (
+                      <span key={index} className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Friends attending */}
+                {showEventDetails.friendsAttending && showEventDetails.friendsAttending.length > 0 && (
+                  <div className="mt-2">
+                    <div className="text-sm font-medium">Friends attending:</div>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {getFriendsAttendingEvent(showEventDetails.id).map((friend) => (
+                        <div key={friend.id} className="flex items-center gap-1">
+                          <div className="w-6 h-6 rounded-full overflow-hidden">
+                            <Image
+                              src={friend.image || "/placeholder.svg"}
+                              alt={friend.name}
+                              width={24}
+                              height={24}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="text-xs">{friend.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {showEventDetails.added ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Assign to Goal:</span>
+                    <select
+                      value={showEventDetails.goalId || ""}
+                      onChange={(e) => {
+                        const goalId = e.target.value || undefined
+                        assignEventToGoal(showEventDetails.id, goalId)
+                        setShowEventDetails({
+                          ...showEventDetails,
+                          goalId: goalId,
+                        })
+                      }}
+                      className="p-1 border rounded text-sm"
+                    >
+                      <option value="">None</option>
+                      {goals.map((goal) => (
+                        <option key={goal.id} value={goal.id}>
+                          {goal.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        toggleEventCompletion(showEventDetails.id)
+                        setShowEventDetails({
+                          ...showEventDetails,
+                          completed: !showEventDetails.completed,
+                        })
+                      }}
+                      className={cn(
+                        "flex-1 py-2 rounded-lg text-white font-medium",
+                        showEventDetails.completed ? "bg-green-500" : "bg-[#5a62ff]",
+                      )}
+                    >
+                      {showEventDetails.completed ? "Completed" : "Mark Complete"}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        removeEventFromSchedule(showEventDetails.id)
+                        setShowEventDetails(null)
+                      }}
+                      className="flex-1 py-2 rounded-lg bg-red-500 text-white font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => addEventToSchedule(showEventDetails.id)}
+                    className="w-full py-2 rounded-lg bg-[#5a62ff] text-white font-medium"
+                  >
+                    Add to Schedule
+                  </button>
+
+                  <button className="w-full py-2 rounded-lg border border-[#5a62ff] text-[#5a62ff] font-medium flex items-center justify-center">
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share with Friends
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Goal Editing Modal */}
+        {editingGoal && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white rounded-lg w-4/5 p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Edit Goal</h2>
+                <button onClick={() => setEditingGoal(null)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Goal Title</label>
+                  <input
+                    type="text"
+                    value={editingGoal.title}
+                    onChange={(e) => setEditingGoal({ ...editingGoal, title: e.target.value })}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Color</label>
+                  <div className="flex gap-2">
+                    {["#ffbcea", "#ffe9c4", "#c6ffd8", "#aca7fa", "#5a62ff"].map((color) => (
+                      <div
+                        key={color}
+                        onClick={() => setEditingGoal({ ...editingGoal, color })}
+                        className={cn(
+                          "w-8 h-8 rounded-full cursor-pointer",
+                          editingGoal.color === color ? "ring-2 ring-black ring-offset-2" : "",
+                        )}
+                        style={{ backgroundColor: color }}
+                      ></div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      updateGoal(editingGoal.id, {
+                        title: editingGoal.title,
+                        color: editingGoal.color,
+                      })
+                      setEditingGoal(null)
+                    }}
+                    className="flex-1 py-2 rounded-lg bg-[#5a62ff] text-white font-medium"
+                  >
+                    Save Changes
+                  </button>
+
+                  <button
+                    onClick={() => deleteGoal(editingGoal.id)}
+                    className="flex-1 py-2 rounded-lg bg-red-500 text-white font-medium"
+                  >
+                    Delete Goal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Event to Goal Modal */}
+        {showAddEventToGoal && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white rounded-lg w-4/5 p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold">Add Event to Goal</h2>
+                <button onClick={() => setShowAddEventToGoal(null)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="max-h-64 overflow-auto">
+                {getAvailableEventsForGoal(showAddEventToGoal).length > 0 ? (
+                  <div className="space-y-2">
+                    {getAvailableEventsForGoal(showAddEventToGoal).map((event) => (
+                      <div key={event.id} className="border rounded-lg p-3">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium">{event.title}</div>
+                            <div className="text-xs text-gray-500">
+                              {event.date.split("-").slice(1).join("/")} · {event.time}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => addEventToGoal(event.id, showAddEventToGoal)}
+                            className="bg-[#5a62ff] text-white px-3 py-1 rounded-lg text-sm"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    No available events to add. Add events to your schedule first.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Connect with Friends Modal */}
+        {showConnectModal && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white rounded-lg w-4/5 p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold">Connect with Friends</h2>
+                <button onClick={() => setShowConnectModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Share your code with friends</h3>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 p-2 border rounded-lg bg-gray-50 text-center font-medium">
+                      {connectionCode}
+                    </div>
+                    <button onClick={copyConnectionCode} className="p-2 bg-[#5a62ff] text-white rounded-lg">
+                      <Copy className="w-5 h-5" />
+                    </button>
+                  </div>
+                  {showCopiedMessage && (
+                    <div className="text-xs text-green-500 mt-1 text-center">Copied to clipboard!</div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Enter a friend's code</h3>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={friendCodeInput}
+                      onChange={(e) => setFriendCodeInput(e.target.value)}
+                      placeholder="Enter code"
+                      className="flex-1 p-2 border rounded-lg"
+                    />
+                    <button
+                      onClick={handleConnectWithFriend}
+                      disabled={!friendCodeInput.trim()}
+                      className={cn(
+                        "p-2 rounded-lg",
+                        friendCodeInput.trim() ? "bg-[#5a62ff] text-white" : "bg-gray-200 text-gray-500",
+                      )}
+                    >
+                      <UserPlus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => setShowConnectModal(false)}
+                    className="w-full py-2 rounded-lg bg-[#5a62ff] text-white font-medium"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function LoginScreen() {
+  return (
+    <div className="h-full relative bg-gray-100">
+      <Image
+        src="/placeholder.svg?height=600&width=400"
+        alt="Group of friends"
+        width={400}
+        height={600}
+        className="w-full h-full object-cover"
+      />
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="bg-white rounded-full p-4 w-32 h-32 flex items-center justify-center mb-4">
+          <div className="text-center">
+            <div className="text-xs">One & About</div>
+            <svg viewBox="0 0 100 50" className="w-20 h-10">
+              <path d="M10,25 Q25,10 40,25 Q55,40 70,25 Q85,10 90,25" fill="none" stroke="black" strokeWidth="2" />
+              <circle cx="10" cy="25" r="3" fill="black" />
+              <circle cx="40" cy="25" r="3" fill="black" />
+              <circle cx="70" cy="25" r="3" fill="black" />
+              <circle cx="90" cy="25" r="3" fill="black" />
+            </svg>
+          </div>
+        </div>
+        <button className="bg-[#aca7fa] text-black px-6 py-2 rounded-md mt-4">SIGN UP/LOG IN</button>
+      </div>
+    </div>
+  )
+}
+
+function ProfileScreen({
+  goals,
+  events,
+  friends,
+  onAddGoal,
+  onEditGoal,
+  onDeleteGoal,
+  onToggleEventCompletion,
+  onAddEventToGoal,
+  availableEvents,
+  addEventToGoal,
+  showAddEventToGoal,
+  activeTab,
+  setActiveTab,
+  onConnectClick,
+}: {
+  goals: Goal[]
+  events: Event[]
+  friends: Friend[]
+  onAddGoal: () => void
+  onEditGoal: (goal: Goal) => void
+  onDeleteGoal: (goalId: string) => void
+  onToggleEventCompletion: (eventId: string) => void
+  onAddEventToGoal: (goalId: string | null) => void
+  availableEvents: Event[]
+  addEventToGoal: (eventId: string, goalId: string) => void
+  showAddEventToGoal: string | null
+  activeTab: "goals" | "friends"
+  setActiveTab: (tab: "goals" | "friends") => void
+  onConnectClick: () => void
+}) {
+  const [activeGoal, setActiveGoal] = useState<string | null>(null)
+
+  const getGoalEvents = (goalId: string) => {
+    return events.filter((event) => event.goalId === goalId)
+  }
+
+  const connectedFriends = friends.filter((friend) => friend.status === "connected")
+  const pendingFriends = friends.filter((friend) => friend.status === "pending")
+  const suggestedFriends = friends.filter((friend) => friend.status === "suggested")
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="bg-[#aca7fa] pt-4 pb-12 px-4 relative">
+        <div className="flex justify-between items-center">
+          <div className="text-center flex-1">
+            <h1 className="text-lg font-semibold">PROFILE</h1>
+          </div>
+          <Cog className="w-5 h-5" />
+        </div>
+      </div>
+
+      {/* Profile Info */}
+      <div className="bg-white flex-1 pt-16 px-4 relative overflow-auto">
+        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2">
+          <div className="rounded-full border-4 border-white overflow-hidden">
+            <Image
+              src="/placeholder.svg?height=80&width=80"
+              alt="Profile"
+              width={80}
+              height={80}
+              className="w-20 h-20 object-cover rounded-full"
+            />
+          </div>
+        </div>
+
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-semibold">Caroline Steele</h2>
+          <p className="text-sm text-gray-500">Student and Photographer</p>
+          <p className="text-xs text-gray-500 mt-2">
+            Hi, My name Carol and I love photography!
+            <br />I love positive people in life
+          </p>
+        </div>
+
+        <div className="flex justify-center gap-4 mb-6">
+          <button className="bg-[#aca7fa] text-black px-6 py-1 rounded-full text-sm">FOLLOW</button>
+          <button className="bg-[#aca7fa] text-black px-6 py-1 rounded-full text-sm">MESSAGE</button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b mb-4">
+          <button
+            onClick={() => setActiveTab("goals")}
+            className={cn(
+              "flex-1 py-2 text-center",
+              activeTab === "goals" ? "border-b-2 border-[#5a62ff] text-[#5a62ff] font-medium" : "text-gray-500",
+            )}
+          >
+            Goals
+          </button>
+          <button
+            onClick={() => setActiveTab("friends")}
+            className={cn(
+              "flex-1 py-2 text-center",
+              activeTab === "friends" ? "border-b-2 border-[#5a62ff] text-[#5a62ff] font-medium" : "text-gray-500",
+            )}
+          >
+            Friends
+          </button>
+        </div>
+
+        {activeTab === "goals" && (
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">My Goals</h3>
+              <button onClick={onAddGoal} className="text-[#5a62ff] text-sm">
+                Add New
+              </button>
+            </div>
+
+            {goals.length > 0 ? (
+              <div className="space-y-4">
+                {goals.map((goal) => (
+                  <div key={goal.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-medium">{goal.title}</h4>
+                      <div className="flex gap-2">
+                        <button onClick={() => onEditGoal(goal)} className="text-xs text-gray-500 hover:text-gray-700">
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-200 rounded-full h-2 relative overflow-hidden">
+                      <div
+                        className="bg-[#5a62ff] h-2 absolute left-0 top-0"
+                        style={{ width: `${goal.progress}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{goal.progress}% Complete</div>
+
+                    {getGoalEvents(goal.id).length > 0 && (
+                      <div className="mt-3">
+                        <h5 className="text-sm font-medium">Events:</h5>
+                        <ul className="mt-2 space-y-1">
+                          {getGoalEvents(goal.id).map((event) => (
+                            <li key={event.id} className="flex items-center justify-between">
+                              <span className="text-sm">{event.title}</span>
+                              <button
+                                onClick={() => onToggleEventCompletion(event.id)}
+                                className={cn(
+                                  "px-2 py-1 rounded-full text-xs",
+                                  event.completed ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700",
+                                )}
+                              >
+                                {event.completed ? "Done" : "Mark Done"}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex justify-center">
+                      <button
+                        onClick={() => onAddEventToGoal(goal.id)}
+                        className="text-xs bg-[#5a62ff] text-white px-3 py-1 rounded-full"
+                      >
+                        Add Event
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No goals yet. Click "Add New" to create your first goal.
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "friends" && (
+          <div className="mb-16">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">My Friends</h3>
+              <button onClick={onConnectClick} className="text-[#5a62ff] text-sm">
+                Connect
+              </button>
+            </div>
+
+            {connectedFriends.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-medium mb-2">Connected</h4>
+                <div className="space-y-3">
+                  {connectedFriends.map((friend) => (
+                    <div key={friend.id} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
+                          <Image
+                            src={friend.image || "/placeholder.svg"}
+                            alt={friend.name}
+                            width={40}
+                            height={40}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <div className="font-medium">{friend.name}</div>
+                          <div className="text-xs text-gray-500">{friend.events?.length || 0} events in common</div>
+                        </div>
+                      </div>
+                      <button className="text-[#5a62ff] text-sm">Message</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {pendingFriends.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-medium mb-2">Pending</h4>
+                <div className="space-y-3">
+                  {pendingFriends.map((friend) => (
+                    <div key={friend.id} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
+                          <Image
+                            src={friend.image || "/placeholder.svg"}
+                            alt={friend.name}
+                            width={40}
+                            height={40}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <div className="font-medium">{friend.name}</div>
+                          <div className="text-xs text-gray-500">Pending request</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="bg-[#5a62ff] text-white px-2 py-1 rounded text-xs">Accept</button>
+                        <button className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">Decline</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {suggestedFriends.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">Suggested</h4>
+                <div className="space-y-3">
+                  {suggestedFriends.map((friend) => (
+                    <div key={friend.id} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
+                          <Image
+                            src={friend.image || "/placeholder.svg"}
+                            alt={friend.name}
+                            width={40}
+                            height={40}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <div className="font-medium">{friend.name}</div>
+                          <div className="text-xs text-gray-500">You might know them</div>
+                        </div>
+                      </div>
+                      <button className="bg-[#5a62ff] text-white px-2 py-1 rounded text-xs">Connect</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
